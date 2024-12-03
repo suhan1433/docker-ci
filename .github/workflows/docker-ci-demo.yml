@@ -1,0 +1,46 @@
+# GitHub Actions Workflow - Push Docker Image to Docker Hub
+name: Push Docker Image to Docker Hub
+
+on:
+  push: # 동작 조건 지정
+    branches: # branch가 push되면 동작하도록
+      - 'main' # main브랜치
+    tags: # tags가 push되면 동작하도록
+      - '**' # 모든 태그
+
+jobs:
+  push: # 작업 이름
+    runs-on: ubuntu-latest # 빌드에 사용할 ubuntu:latest 머신 시작
+
+    steps:
+      - name: Checkout # 저장소 코드를 runner에 다운로드
+        uses: actions/checkout@v2
+
+      - name: Docker meta # Docker 메타데이터 생성
+        id: docker_meta # 변수값으로 하위 코드에서 output으로 사용 가능
+        uses: crazy-max/ghaction-docker-meta@v1
+        with: # 동작에 대한 input값 설정
+          images: suhan123/nodejs-ci # 사용할 Docker 저장소
+          tag-semver: | # 태그로 사용할 버전 정보
+            {{version}}
+            {{major}}.{{minor}}
+
+      - name: Set up QEMU # QEMU 설정 (다중 플랫폼 지원)
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx # Buildx 설정 (다중 플랫폼 빌드)
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub # Docker Hub 로그인
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }} # Docker Hub 사용자 ID (비밀값)
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }} # Docker Hub 암호 (비밀값)
+
+      - name: Build and push Docker Image # Docker 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v4
+        with:
+          context: . # 빌드 컨텍스트
+          push: true # 빌드 후 Docker Hub에 푸시 여부
+          tags: ${{ steps.docker_meta.outputs.tags }} # 태그 지정
+          labels: ${{ steps.docker_meta.outputs.labels }} # 라벨 지정
